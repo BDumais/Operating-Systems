@@ -22,18 +22,21 @@ int main(int argc, char *argv[]){
 
 	signal(SIGINT, sigHandler);	//Initialize signal handler
 	
-	char *proc = argv[0];	//Get passed argument to program
+	if(arv[1]==NULL){
+		printf("No input, exiting\n");
+		exit;
+	}
 	
-	pid_t pid;	//Pid of current process	
+	char *proc = argv[1];	//Get passed argument to program
+	
+	int pid;				//Pid of current process	
 	pid = fork();			//Fork program
 	
 	if(pid < 0){		//On fork error, exit
-		printf("Unable to Fork\n");
-		return;
+		printf("Unable to fork, exiting\n");
+		exit(0);
 	}
 	else if(pid==0){	//Child
-		//printf("in child\n");
-		signal(SIGINT, sigHandler);	//Initialize signal handler
 		execlp(proc, proc, (char *)NULL);	//Execute process that was input through parameters
 	}
 	else{				//Parent
@@ -43,32 +46,30 @@ int main(int argc, char *argv[]){
 		char *utimeLine;	//Strings to contain utime and stime Lines, which will be parsed from file
 		char *stimeLine;
 		
-		char *fPath;		//File path string
+		char fPath[MAX] = {0};		//File path string
 		char buff[MAX];		//Buffer for reading file
 		size_t s = 0;		//Size for buffer
 	
 		FILE *pidStats;		//File path variable
 		
 		//Create file path variable by adding pid into /proc/<pid>/stat
-		fPath += sprintf(fPath, "%s", "/proc/");
-		fPath += sprintf(fPath, "%ld", (long)pid);
-		fPath += sprintf(fPath, "%s", "/stat");
+		sprintf(fPath, "/proc/%d/stat", pid);
 		
 		//Loop until child process finishes
 		while(waitpid(pid, &status, WNOHANG) == 0){	
-			//printf("child is running\n");
 			pidStats = fopen(fPath, "r");		//Open pid stats
 			s = fread(buff, 1, MAX, pidStats);	//Read into buffer
 			fclose(pidStats);					//Close file
 				
 			buff[s] = '\0';						//Add null to input
-			utimeLine = strstr(buff, "utime");	//Find utime
-			utimeLine = strtok(utimeLine, "\n");	//Tokenize at utime
-				
-			stimeLine = strstr(buff, "stime");	//Repeat for stime
-			stimeLine = strtok(stimeLine, "\n");
-				
-			printf("%s\t%s\n",utimeLine, stimeLine);	//Print values
+			int i;					//Loop variable
+			strtok(buff, " ");		//Start tokenizing buffer
+			for(i=0;i<13;i++)		//Loop 13 times (gets us to utime value)
+				strtok(NULL, " ");
+			
+			utimeLine = strtok(NULL, " ");	//Get next token, which is utime
+			stimeLine = strtok(NULL, " ");	//Get next token, this time stime
+			printf("User Time: %s\tKernel Time: %s\n",utimeLine, stimeLine);	//Print values
 				
 			sleep(1);	//Sleep for 1 second
 
